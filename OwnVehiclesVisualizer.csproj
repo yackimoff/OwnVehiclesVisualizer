@@ -76,7 +76,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Source\BuildingManagerPatch.cs" />
-    <Compile Include="Source\CodeMatcherExtensions.cs" />
     <Compile Include="Source\Log.cs" />
     <Compile Include="Source\InstanceManagerPatch.cs" />
     <Compile Include="Source\CitiesExtensions.cs" />
