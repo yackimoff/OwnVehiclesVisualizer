@@ -1,20 +1,15 @@
 ﻿
 namespace OwnVehiclesVisualizer.BuildingManagerPatch
 {
-    using System;
     using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
+
     using ColossalFramework;
+
     using HarmonyLib;
+
     using JetBrains.Annotations;
-    using CitiesExtensions;
-    using System.Runtime.CompilerServices;
-    using System.Threading;
-    using Epic.OnlineServices.Presence;
-    using static InfoManager;
+
     using UnityEngine;
-    using ICities;
 
     [HarmonyPatch(typeof(BuildingManager))]
     internal static class BuildingManagerPatch
@@ -22,19 +17,19 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
 
         internal const int UPDATE_INTERVAL = 200;
         internal static int m_frame = 0;
-        internal static int ID_BuildingSize = Shader.PropertyToID("_BuildingSize");
+        internal readonly static int ID_BuildingSize = Shader.PropertyToID("_BuildingSize");
+        public static bool Enabled { get; set; }
 
         [UsedImplicitly]
         [HarmonyPatch("SimulationStepImpl")]
         [HarmonyPostfix]
-        internal static void PostSimulationStep(BuildingManager __instance)
+        internal static void PostSimulationStep()
         {
             m_frame++;
             if (m_frame == UPDATE_INTERVAL)
             {
                 m_frame = 0;
-                if (!OwnVehiclesVisualizer.ShowBuildingVehiclesPaths && (OwnVehiclesVisualizer.HighlightTargetBuildings || OwnVehiclesVisualizer.HighlightSourceBuildings || OwnVehiclesVisualizer.HighlightThirdTypeBuildings))
-                    // don't update here if ShowBuildingVehiclePaths is true, let PathVisualizerPatch update.
+                if (OwnVehiclesVisualizer.HighlightBuildings && !OwnVehiclesVisualizer.HighlightPaths)
                     OwnVehiclesVisualizer.Update();
             }
         }
@@ -42,36 +37,28 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
         [UsedImplicitly]
         [HarmonyPatch("BeginOverlayImpl")]
         [HarmonyPostfix]
-        internal static void BuildingManagerPostBeginOverlayImpl(BuildingManager __instance, RenderManager.CameraInfo cameraInfo, ref Material ___m_highlightMaterial, ref Mesh ___m_highlightMesh, ref Mesh ___m_highlightMesh2)
+        internal static void BuildingManagerPostBeginOverlayImpl(ref Material ___m_highlightMaterial, ref Mesh ___m_highlightMesh, ref Mesh ___m_highlightMesh2)
         {
-            if (!OwnVehiclesVisualizer.HighlightTargetBuildings && !OwnVehiclesVisualizer.HighlightSourceBuildings)
-                return;
-            OwnVehiclesVisualizer.Enter();
+            if (Enabled && OwnVehiclesVisualizer.HighlightBuildings && OwnVehiclesVisualizer.TryEnter())
             try
             {
-                if (OwnVehiclesVisualizer.HighlightTargetBuildings)
-                {
-                    __instance.DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedTargetBuildings, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
-                    __instance.DrawHighlightMeshesAtWorldPoses(OwnVehiclesVisualizer.HighlightedWorldPoses, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh2);
-                }
-                if (OwnVehiclesVisualizer.HighlightSourceBuildings)
-                    __instance.DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedSourceBuildings, OwnVehiclesVisualizer.SourceBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
-                if (OwnVehiclesVisualizer.HighlightThirdTypeBuildings)
-                    __instance.DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedThirdTypeBuildings, OwnVehiclesVisualizer.ThirdTypeBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
-            }
-            finally
+                DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedTargetBuildings, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
+                DrawHighlightMeshesAtWorldPoses(OwnVehiclesVisualizer.HighlightedWorldPoses, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh2);
+                DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedSourceBuildings, OwnVehiclesVisualizer.SourceBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
+                DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedThirdTypeBuildings, OwnVehiclesVisualizer.ThirdTypeBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
+            } finally
             {
                 OwnVehiclesVisualizer.Exit();
             }
         }
 
-        private static void DrawHighlightMeshesAtWorldPoses(this BuildingManager __instance, IEnumerable<Vector3> poses, Color color, Material material, Mesh circularMesh)
+        private static void DrawHighlightMeshesAtWorldPoses(IEnumerable<Vector3> poses, Color color, Material material, Mesh circularMesh)
         {
             foreach (Vector3 pos in poses)
                 DrawHighlightMeshAtWorldPos(material, circularMesh, pos, color);
         }
 
-        private static void DrawHighlightMeshes(this BuildingManager __instance, IEnumerable<ushort> buildings, Color color, Material material, Mesh mesh, Mesh circularMesh)
+        private static void DrawHighlightMeshes(IEnumerable<ushort> buildings, Color color, Material material, Mesh mesh, Mesh circularMesh)
         {
             foreach (ushort buildingId in buildings)
                 DrawHighlightMesh(material, mesh, circularMesh, buildingId, color);
@@ -79,7 +66,7 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
 
         private static void DrawHighlightMeshAtWorldPos(Material material, Mesh mesh, Vector3 pos, Color color)
         {
-            Vector4 size = new Vector4 { x = 5f, z = 5f, w = 1f };
+            Vector4 size = new() { x = 5f, z = 5f, w = 1f };
             material.color = color;
             material.SetVector(BuildingManager.instance.ID_BuildingSize, size);
             if (material.SetPass(0))
@@ -89,7 +76,7 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
             }
         }
 
-        private static void DrawHighlightMesh(Material highlightMaterial, Mesh highlightMesh, Mesh highlightMeshCircular, ushort id, Color color, bool forceuseCircular = false)
+        private static void DrawHighlightMesh(Material highlightMaterial, Mesh highlightMesh, Mesh highlightMeshCircular, ushort id, Color color)
         {
             Building data = Singleton<BuildingManager>.instance.m_buildings.m_buffer[id];
             BuildingInfo info = data.Info;
@@ -141,7 +128,7 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
             //    meshPos = data.m_position;
             //    buildingSize = new Vector4((float)width * 8f, info.m_size.y, (float)length * 8f);
             //}
-            buildingSize.w = ((!info.m_circular) ? 0f : 1f);
+            buildingSize.w = (!info.m_circular) ? 0f : 1f;
             highlightMaterial.SetVector(BuildingManager.instance.ID_BuildingSize, buildingSize);
             if (highlightMaterial.SetPass(0))
             {

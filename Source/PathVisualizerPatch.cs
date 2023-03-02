@@ -1,44 +1,95 @@
 ﻿
 namespace OwnVehiclesVisualizer.PathVisualizerPatch
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Reflection;
+    using System.Threading;
+
+    using CitiesExtensions;
+
     using ColossalFramework;
     using ColossalFramework.Math;
     using ColossalFramework.UI;
-    using Epic.OnlineServices.Presence;
+
     using HarmonyLib;
+
     using JetBrains.Annotations;
-    using System;
-    using System.CodeDom;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Reflection.Emit;
-    using System.Threading;
+
     using UnityEngine;
 
-    [HarmonyPatch]
+    [HarmonyPatch(typeof(PathVisualizer))]
     internal static class PathVisualizerPatch
     {
+        private static readonly FieldInfo mPathsField = AccessTools.Field(typeof(PathVisualizer), "m_paths");
+        private static readonly FieldInfo mLastInstance = AccessTools.Field(typeof(PathVisualizer), "m_lastInstance");
 
-        internal const int UPDATE_INTERVAL = 200;
+        private static int refreshFrame = 0;
+        private static bool enabled = false;
+        private static bool refreshNeeded = false;
 
-        internal static int m_frame = 0;
+        public static bool Enabled
+        {
+            get => enabled;
+            set
+            {
+                if (enabled == value) return;
+                if (value)
+                    enabled = value;
+                else
+                {
+                    enabled = false;
+                    refreshFrame = 0;
+                     PathVisualizer pathVisualizer = NetManager.instance.PathVisualizer;
+                    //Dictionary<InstanceID, PathVisualizer.Path> mpaths = (Dictionary<InstanceID, PathVisualizer.Path>)mPathsField.GetValue(pathVisualizer);
+                    //try
+                    //{
+                    //    // Try to desperatly release paths including refreshRequired flag because vanilla mode builds paths for visualization differently.
+                    //    while (!Monitor.TryEnter(mpaths, SimulationManager.SYNCHRONIZE_TIMEOUT)) { };
+                    //    try
+                    //    {
+                    //        foreach (KeyValuePair<InstanceID, PathVisualizer.Path> kv in mpaths)
+                    //        {
+                    //            kv.Value.m_stillNeeded = false;
+                    //            kv.Value.m_canRelease = true;
+                    //            kv.Value.m_refreshRequired = true;
+                    //        }
+                    //    } finally
+                    //    {
+                    //        Monitor.Exit(mpaths);
+                    //    }
+                    //} catch
+                    //{
+                    //    // Go with UpdateData if failed.
+                    //    pathVisualizer.UpdateData();
+                    //}
+                    pathVisualizer.PathsVisible = InfoManager.instance is { CurrentMode: InfoManager.InfoMode.TrafficRoutes, CurrentSubMode: InfoManager.SubInfoMode.Paths };
+                    mLastInstance.SetValue(pathVisualizer, InstanceID.Empty);
+                }
+            }
+        }
+        public static bool UseAlpha { get; set; } = true;
+
+        #region Patches
 
         [UsedImplicitly]
-        [HarmonyPatch(typeof(PathVisualizer), "SimulationStep")]
         [HarmonyPrefix]
-        public static bool PathVisualizerPreSimulationStep(PathVisualizer __instance, ref bool ___m_pathsVisible, FastList<PathVisualizer.Path> ___m_stepPaths, ref int ___m_pathRefreshFrame)
+        [HarmonyPatch("SimulationStep")]
+        internal static bool PathVisualizerPreSimulationStep(PathVisualizer __instance, FastList<PathVisualizer.Path> ___m_stepPaths)
         {
-            if (!OwnVehiclesVisualizer.ShowBuildingVehiclesPaths)
+            if (!Enabled || !OwnVehiclesVisualizer.HighlightPaths)
                 return true;
-            ___m_pathsVisible = true;
-            if (m_frame == 0)
+
+            NetManager.instance.PathVisualizer.PathsVisible = true;
+            if (refreshNeeded && OwnVehiclesVisualizer.TryEnter())
             {
-                OwnVehiclesVisualizer.Enter();
                 try
                 {
+                    OwnVehiclesVisualizer.Update();
+                    refreshNeeded = false;
+                    refreshFrame = 0;
                     __instance.AddInstances(OwnVehiclesVisualizer.HighlightedPaths);
-                }
-                finally
+                } finally
                 {
                     OwnVehiclesVisualizer.Exit();
                 }
@@ -48,103 +99,97 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
         }
 
         [UsedImplicitly]
-        [HarmonyPatch(typeof(PathVisualizer), "SimulationStep")]
         [HarmonyPostfix]
-        public static void PathVisualizerPostSimulationStep()
+        [HarmonyPatch("SimulationStep")]
+        internal static void PathVisualizerPostSimulationStep()
         {
-            m_frame++;
-            if (m_frame == UPDATE_INTERVAL)
+            if (Enabled && !refreshNeeded)
             {
-                m_frame = 0;
-                if (OwnVehiclesVisualizer.ShowBuildingVehiclesPaths)
-                    OwnVehiclesVisualizer.Update();
+                refreshFrame++;
+                if (refreshFrame % 0x100 == 0)
+                    refreshNeeded = true;
             }
         }
-
-
 
         [UsedImplicitly]
-        [HarmonyPatch(typeof(PathVisualizer), "UpdateMesh")]
         [HarmonyPostfix]
-        internal static void PathVisualizerPostUpdateMesh(PathVisualizer __instance, ref PathVisualizer.Path path)
+        [HarmonyPatch("UpdateMesh")]
+        internal static void PathVisualizerPostUpdateMesh(ref PathVisualizer.Path path, ref FastList<PathVisualizer.Path> ___m_stepPaths)
         {
-            if (OwnVehiclesVisualizer.ShowBuildingVehiclesPaths)
+            if (Enabled && OwnVehiclesVisualizer.HighlightPaths && UseAlpha && ___m_stepPaths.m_size > 1)
             {
-                float r = new Randomizer(path.m_id.Vehicle).UInt32(25) / 25.0f;
-                bool returningToFacility = Singleton<VehicleManager>.instance.m_vehicles.m_buffer[path.m_id.Vehicle] is Vehicle vehicle &&
-                    (vehicle.m_flags.IsFlagSet(Vehicle.Flags.GoingBack) || vehicle.Info.GetAI() is TaxiAI taxi && taxi.GetPassengerInstance(path.m_id.Vehicle, ref vehicle) == 0);
-                r = returningToFacility ? 1 - r / 3f : r / 3f;
-                path.m_color = Color.Lerp(Singleton<InfoManager>.instance.CurrentMode == InfoManager.InfoMode.None ? Color.white.linear : Singleton<InfoManager>.instance.m_properties.m_neutralColor.linear, path.m_color.linear, r).gamma with { a = 0.45f };
+                float r = new Randomizer(path.m_id.RawData).UInt32(25) / 25.0f;
+                bool isGoingBack = path.m_id is { Type: InstanceType.Vehicle, Vehicle: var vehicleId }
+                    && vehicleId.ToVehicle() is Vehicle vehicle
+                    && (vehicle.m_flags.IsFlagSet(Vehicle.Flags.GoingBack)
+                        || vehicle.Info.GetAI() is TaxiAI taxi
+                            && taxi.GetPassengerInstance(path.m_id.Vehicle, ref vehicle) == 0);
+                path.m_color = Color.Lerp(
+                        path.m_color.linear,
+                        (InfoManager.instance.CurrentMode == InfoManager.InfoMode.None ? Color.white : InfoManager.instance.m_properties.m_neutralColor).linear,
+                        isGoingBack ? 1 - r : r)
+                    .gamma
+                    with { a = 0.45f };
             }
         }
-    }
 
+        #endregion
 
-    [HarmonyPatch]
-    internal static class PathVisualizerAccess
-    {
-
-        public static void AddInstances(this PathVisualizer __instance, IEnumerable<InstanceID> instances)
+        private static void AddInstances(this PathVisualizer __instance, IEnumerable<InstanceID> instances)
         {
             __instance.PreAddInstances();
             try
             {
-                instances.ForEach((instanceID) => __instance.AddInstance(instanceID));
+                foreach (InstanceID instanceID in instances) __instance.AddInstance(instanceID);
             } finally
             {
                 __instance.PostAddInstances();
             }
         }
 
-        public static void StepPaths(this PathVisualizer __instance, FastList<PathVisualizer.Path> m_paths)
+        private static void StepPaths(this PathVisualizer __instance, FastList<PathVisualizer.Path> m_paths)
         {
             for (int i = 0; i < m_paths.m_size; ++i)
-            {
                 __instance.StepPath(m_paths[i]);
-            }
-
         }
 
-        [UsedImplicitly]
-        [HarmonyReversePatch]
-        [HarmonyPatch(typeof(PathVisualizer), "PreAddInstances")]
-        internal static void PreAddInstances(this PathVisualizer __instance)
-        {
-            Debug.LogError("[PathVisualizerReversePatch]:PreAddInstances() Redirection failed!");
-        }
+        #region Reverse patches
 
         [UsedImplicitly]
         [HarmonyReversePatch]
-        [HarmonyPatch(typeof(PathVisualizer), "PostAddInstances")]
-        internal static void PostAddInstances(this PathVisualizer __instance)
-        {
-            Debug.LogError("[PathVisualizerReversePatch]:PostAddInstances() Redirection failed!");
-        }
+        [HarmonyPatch("PreAddInstances")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Reverse patch")]
+        private static void PreAddInstances(this PathVisualizer __instance) => Debug.LogError("[PathVisualizerReversePatch]:PreAddInstances() Redirection failed!");
 
         [UsedImplicitly]
         [HarmonyReversePatch]
-        [HarmonyPatch(typeof(PathVisualizer), "AddInstance")]
-        internal static void AddInstance(this PathVisualizer __instance, InstanceID id)
-        {
-            Debug.LogError("[PathVisualizerReversePatch]:AddInstance() Redirection failed!");
-        }
+        [HarmonyPatch("PostAddInstances")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Reverse patch")]
+        private static void PostAddInstances(this PathVisualizer __instance) => Debug.LogError("[PathVisualizerReversePatch]:PostAddInstances() Redirection failed!");
 
         [UsedImplicitly]
         [HarmonyReversePatch]
-        [HarmonyPatch(typeof(PathVisualizer), "StepPath")]
-        internal static void StepPath(this PathVisualizer __instance, PathVisualizer.Path path)
-        {
-            Debug.LogError("[PathVisualizerReversePatch]:StepPath() Redirection failed!");
-        }
+        [HarmonyPatch("AddInstance")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Reverse patch")]
+        private static void AddInstance(this PathVisualizer __instance, InstanceID id) => Debug.LogError("[PathVisualizerReversePatch]:AddInstance() Redirection failed!");
+
+        [UsedImplicitly]
+        [HarmonyReversePatch]
+        [HarmonyPatch("StepPath")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Reverse patch")]
+        private static void StepPath(this PathVisualizer __instance, PathVisualizer.Path path) => Debug.LogError("[PathVisualizerReversePatch]:StepPath() Redirection failed!");
 
         [UsedImplicitly]
         [HarmonyReversePatch]
         [HarmonyPatch(typeof(TaxiAI), "GetPassengerInstance")]
-        internal static ushort GetPassengerInstance(this TaxiAI __instance, ushort vehicleID, ref Vehicle data)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Reverse patch")]
+        private static ushort GetPassengerInstance(this TaxiAI __instance, ushort vehicleID, ref Vehicle data)
         {
             Debug.LogError("[PathVisualizerReversePatch]:StepPath() Redirection failed!");
             return 0;
         }
+
+        #endregion
 
     }
 }

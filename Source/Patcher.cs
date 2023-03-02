@@ -1,10 +1,12 @@
 ﻿
 namespace OwnVehiclesVisualizer
 {
-    using HarmonyLib;
-    using System.Reflection;
-    using UnityEngine;
     using System;
+    using System.Reflection;
+
+    using HarmonyLib;
+
+    using UnityEngine;
 
     public class Patcher
     {
@@ -19,16 +21,14 @@ namespace OwnVehiclesVisualizer
             {
 #if DEBUG
                 Harmony.DEBUG = true;
-                Debug.Log($"[BVMPVE] Patching {Assembly.GetExecutingAssembly().GetName().Version}");
+                Debug.Log($"Patching {Assembly.GetExecutingAssembly().GetName().Version}");
 #endif
                 var harmony = new Harmony(HarmonyId);
                 harmony.PatchAll();
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 Debug.LogException(e);
-            }
-            finally
+            } finally
             {
                 patched = true;
             }
@@ -40,7 +40,7 @@ namespace OwnVehiclesVisualizer
 
 #if DEBUG
             Harmony.DEBUG = true;
-            Debug.Log($"[BVMPVE] Unpatching {Assembly.GetExecutingAssembly().GetName().Version}");
+            Debug.Log($"Unpatching {Assembly.GetExecutingAssembly().GetName().Version}");
 #endif
             var harmony = new Harmony(HarmonyId);
             harmony.UnpatchAll(HarmonyId);

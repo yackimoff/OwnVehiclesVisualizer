@@ -1,9 +1,14 @@
 ﻿namespace OwnVehiclesVisualizer
 {
-    using CitiesHarmony.API;
-    using ICities;
-    using JetBrains.Annotations;
     using System;
+
+    using CitiesHarmony.API;
+
+    using ICities;
+
+    using JetBrains.Annotations;
+
+    using UnityEngine;
 
     public class OwnVehiclesVisualizerMod : LoadingExtensionBase, IUserMod
     {
@@ -19,8 +24,15 @@
         public override void OnLevelLoaded(LoadMode mode)
         {
             base.OnLevelLoaded(mode);
-            if (mode == LoadMode.NewGame || mode == LoadMode.LoadGame)
+            if (mode is LoadMode.NewGame or LoadMode.LoadGame or LoadMode.NewGameFromScenario or LoadMode.LoadScenario)
                 OwnVehiclesVisualizer.Init();
+        }
+
+        public override void OnLevelUnloading()
+        {
+            if (OwnVehiclesVisualizer.Initialized)
+                OwnVehiclesVisualizer.Deinit();
+            base.OnLevelUnloading();
         }
 
         public string Description => "Building Vehicle Monitor Path Visualizer Extension";
@@ -41,4 +53,3 @@
         }
     }
 }
-
