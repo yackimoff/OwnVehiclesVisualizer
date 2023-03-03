@@ -120,9 +120,15 @@ namespace OwnVehiclesVisualizer
                 {
                     if (addTarget)
                     {
-                        foreach (ushort transportVehicleId in vehicleId.WithTrailers())
-                            foreach (ushort citizenInstanceId in transportVehicleId.ToVehicle().m_citizenUnits.EnumerateCitizens().Select(citizenId => citizenId.ToCitizen().m_instance))
-                                AddCitizenInstance(citizenInstanceId, m_expandVehicleToSourceBuilding);
+                        if (m_expandVehicleToSourceBuilding)
+                        {
+                            foreach (ushort transportVehicleId in vehicleId.WithTrailers())
+                                foreach (ushort citizenInstanceId in transportVehicleId.ToVehicle().m_citizenUnits.EnumerateCitizens().Select(citizenId => citizenId.ToCitizen().m_instance))
+                                    AddCitizenInstance(citizenInstanceId, m_expandVehicleToSourceBuilding);
+                        } else if (vehicle.m_targetBuilding is not 0 and ushort targetBuilding)
+                        {
+                            HighlightedWorldPoses.Add(vehicle.m_targetBuilding.ToNode().m_position);
+                        }
                         HighlightedPaths.Add(new InstanceID { Vehicle = vehicleId });
                     } else
                         HighlightedPaths.Add(new InstanceID { Vehicle = vehicleId });
