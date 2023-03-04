@@ -35,12 +35,14 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
             {
                 if (enabled == value) return;
                 if (value)
-                    enabled = value;
-                else
                 {
+                    enabled = value;
+                    refreshNeeded = true;
+                    refreshFrame = 0;
+                } else {
                     enabled = false;
                     refreshFrame = 0;
-                     PathVisualizer pathVisualizer = NetManager.instance.PathVisualizer;
+                    PathVisualizer pathVisualizer = NetManager.instance.PathVisualizer;
                     //Dictionary<InstanceID, PathVisualizer.Path> mpaths = (Dictionary<InstanceID, PathVisualizer.Path>)mPathsField.GetValue(pathVisualizer);
                     //try
                     //{
@@ -77,7 +79,7 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
         [HarmonyPatch("SimulationStep")]
         internal static bool PathVisualizerPreSimulationStep(PathVisualizer __instance, FastList<PathVisualizer.Path> ___m_stepPaths)
         {
-            if (!Enabled || !OwnVehiclesVisualizer.HighlightPaths)
+            if (!Enabled)
                 return true;
 
             NetManager.instance.PathVisualizer.PathsVisible = true;
@@ -116,7 +118,7 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
         [HarmonyPatch("UpdateMesh")]
         internal static void PathVisualizerPostUpdateMesh(ref PathVisualizer.Path path, ref FastList<PathVisualizer.Path> ___m_stepPaths)
         {
-            if (Enabled && OwnVehiclesVisualizer.HighlightPaths && UseAlpha && ___m_stepPaths.m_size > 1)
+            if (Enabled && UseAlpha && ___m_stepPaths.m_size > 1)
             {
                 float r = new Randomizer(path.m_id.RawData).UInt32(25) / 25.0f;
                 bool isGoingBack = path.m_id is { Type: InstanceType.Vehicle, Vehicle: var vehicleId }
@@ -185,7 +187,7 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Reverse patch")]
         private static ushort GetPassengerInstance(this TaxiAI __instance, ushort vehicleID, ref Vehicle data)
         {
-            Debug.LogError("[PathVisualizerReversePatch]:StepPath() Redirection failed!");
+            Debug.LogError("[PathVisualizerReversePatch]:GetPassengerInstance() Redirection failed!");
             return 0;
         }
 

@@ -37,7 +37,7 @@
             ref float totalLength,
             ref Vector3 position)
         {
-            if (PathVisualizerPatch.Enabled && OwnVehiclesVisualizer.HighlightPaths)
+            if (true || PathVisualizerPatch.Enabled)
             {
                 laneTypes = NetInfo.LaneType.None;
                 vehicleTypes = VehicleInfo.VehicleType.None;
@@ -49,7 +49,7 @@
 
         internal static void TransportLineFillPathSegmentsCallCatch(uint path, int startIndex, NetInfo.LaneType laneTypes, VehicleInfo.VehicleType vehicleTypes, VehicleInfo.VehicleCategory vehicleCategories, ref TransportLine.TempUpdateMeshData[] data, Bezier3[] curves, Vector2[] curveOffsets, ref int curveIndex, ref float currentLength, float lengthScale, out Vector3 minPos, out Vector3 maxPos, bool ignoreY, bool useStopOffset)
         {
-            if (PathVisualizerPatch.Enabled && OwnVehiclesVisualizer.HighlightPaths)
+            if (true || PathVisualizerPatch.Enabled)
             {
                 laneTypes = NetInfo.LaneType.None;
                 vehicleTypes = VehicleInfo.VehicleType.None;

@@ -16,8 +16,10 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
     {
 
         internal const int UPDATE_INTERVAL = 200;
-        internal static int m_frame = 0;
         internal readonly static int ID_BuildingSize = Shader.PropertyToID("_BuildingSize");
+
+        private static int refreshFrame = 0;
+
         public static bool Enabled { get; set; }
 
         [UsedImplicitly]
@@ -25,12 +27,14 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
         [HarmonyPostfix]
         internal static void PostSimulationStep()
         {
-            m_frame++;
-            if (m_frame == UPDATE_INTERVAL)
+            if (Enabled)
             {
-                m_frame = 0;
-                if (OwnVehiclesVisualizer.HighlightBuildings && !OwnVehiclesVisualizer.HighlightPaths)
+                refreshFrame++;
+                if (refreshFrame == UPDATE_INTERVAL)
+                {
+                    refreshFrame = 0;
                     OwnVehiclesVisualizer.Update();
+                }
             }
         }
 
@@ -39,7 +43,7 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
         [HarmonyPostfix]
         internal static void BuildingManagerPostBeginOverlayImpl(ref Material ___m_highlightMaterial, ref Mesh ___m_highlightMesh, ref Mesh ___m_highlightMesh2)
         {
-            if (Enabled && OwnVehiclesVisualizer.HighlightBuildings && OwnVehiclesVisualizer.TryEnter())
+            if (Enabled && OwnVehiclesVisualizer.TryEnter())
             try
             {
                 DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedTargetBuildings, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
