@@ -10,6 +10,7 @@ namespace OwnVehiclesVisualizer
 
     using ColossalFramework;
     using ColossalFramework.UI;
+
     using Epic.OnlineServices.Presence;
 
     using UnityEngine;

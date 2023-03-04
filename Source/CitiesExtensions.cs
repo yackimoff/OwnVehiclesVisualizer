@@ -30,9 +30,9 @@
                 vehicleId = nextId;
             }
         }
-        
+
         public static IEnumerable<ushort> EnumerateOwnVehicles(this ushort buidingID) => BuildingManager.instance.m_buildings.m_buffer[buidingID].EnumerateOwnVehicles();
-        
+
         public static IEnumerable<ushort> EnumerateGuestVehicles(this ushort buidingID) => BuildingManager.instance.m_buildings.m_buffer[buidingID].EnumerateGuestVehicles();
 
         public static IEnumerable<uint> EnumerateCitizens(this uint citizenUnitId)
@@ -53,7 +53,7 @@
                 citizenUnitId = unit.m_nextUnit;
             }
         }
-        
+
         [MethodImpl(MethodImplOptionsAggressiveInlining)]
         public static ref Citizen ToCitizen(this uint citizenId) => ref CitizenManager.instance.m_citizens.m_buffer[citizenId];
 

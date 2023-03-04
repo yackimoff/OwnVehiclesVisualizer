@@ -39,7 +39,8 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
                     enabled = value;
                     refreshNeeded = true;
                     refreshFrame = 0;
-                } else {
+                } else
+                {
                     enabled = false;
                     refreshFrame = 0;
                     PathVisualizer pathVisualizer = NetManager.instance.PathVisualizer;
@@ -131,7 +132,8 @@ namespace OwnVehiclesVisualizer.PathVisualizerPatch
                         (InfoManager.instance.CurrentMode == InfoManager.InfoMode.None ? Color.white : InfoManager.instance.m_properties.m_neutralColor).linear,
                         isGoingBack ? 1 - r : r)
                     .gamma
-                    with { a = 0.45f };
+                    with
+                { a = 0.45f };
             }
         }
 

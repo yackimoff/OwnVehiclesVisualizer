@@ -44,16 +44,16 @@ namespace OwnVehiclesVisualizer.BuildingManagerPatch
         internal static void BuildingManagerPostBeginOverlayImpl(ref Material ___m_highlightMaterial, ref Mesh ___m_highlightMesh, ref Mesh ___m_highlightMesh2)
         {
             if (Enabled && OwnVehiclesVisualizer.TryEnter())
-            try
-            {
-                DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedTargetBuildings, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
-                DrawHighlightMeshesAtWorldPoses(OwnVehiclesVisualizer.HighlightedWorldPoses, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh2);
-                DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedSourceBuildings, OwnVehiclesVisualizer.SourceBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
-                DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedThirdTypeBuildings, OwnVehiclesVisualizer.ThirdTypeBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
-            } finally
-            {
-                OwnVehiclesVisualizer.Exit();
-            }
+                try
+                {
+                    DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedTargetBuildings, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
+                    DrawHighlightMeshesAtWorldPoses(OwnVehiclesVisualizer.HighlightedWorldPoses, OwnVehiclesVisualizer.TragetBuildingColor, ___m_highlightMaterial, ___m_highlightMesh2);
+                    DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedSourceBuildings, OwnVehiclesVisualizer.SourceBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
+                    DrawHighlightMeshes(OwnVehiclesVisualizer.HighlightedThirdTypeBuildings, OwnVehiclesVisualizer.ThirdTypeBuildingColor, ___m_highlightMaterial, ___m_highlightMesh, ___m_highlightMesh2);
+                } finally
+                {
+                    OwnVehiclesVisualizer.Exit();
+                }
         }
 
         private static void DrawHighlightMeshesAtWorldPoses(IEnumerable<Vector3> poses, Color color, Material material, Mesh circularMesh)
