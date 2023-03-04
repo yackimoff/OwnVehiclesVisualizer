@@ -35,7 +35,7 @@
             base.OnLevelUnloading();
         }
 
-        public string Description => "Building Vehicle Monitor Path Visualizer Extension";
+        public string Description => "Use Ctrl, Shift, or Alt when selecting to show paths and targets";
         [UsedImplicitly]
         public void OnEnabled()
         {
